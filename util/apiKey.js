@@ -48,9 +48,9 @@ export function getApiKey(booru) {
 
 export function setApiKey(data) {
 	if (data === undefined)
-		new ChipbooruError("NO_SETKEY_PARAM").throw();
-	if (typeof data !== "object" || data.constructor.name !== "Object")
-		new ChipbooruError("SETKEY_PARAM_NOT_OBJECT").throw();
+		new ChipbooruError("SETKEY_NO_PARAM").throw();
+	if (data.constructor.name !== "Object")
+		new ChipbooruError("SETKEY_NOT_OBJECT").throw();
 
 	const unsupported = Object.getOwnPropertyNames(data).filter(key => planned.includes(key));
 	const unrecognised = Object.getOwnPropertyNames(data).filter(key => ![ ...supported, ...planned ].includes(key));
@@ -58,7 +58,7 @@ export function setApiKey(data) {
 	if (unrecognised.length)
 		new ChipbooruWarning("IMAGEBOARD_NOT_SUPPORTED", unrecognised[0]).throw();
 	if (unsupported.length)
-		new ChipbooruWarning("IMAGEBOARD_NOT_YET_SUPPORTED", unsupported[0]).throw();
+		new ChipbooruWarning("IMAGEBOARD_NOT_SUPPORTED_YET", unsupported[0]).throw();
 
 	Object.assign(keys, data);
 }
