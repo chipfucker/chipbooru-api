@@ -1,0 +1,64 @@
+import { ChipbooruError, ChipbooruWarning } from "./error.js";
+
+const supported = [
+	"rule34"
+];
+
+const planned = [
+	"e621", "safebooru"
+];
+
+/* IMAGEBOARDS SUPPORTED BY GRABBER:
+ * anime-pictures.net
+ * api.rule34.xxx
+ * behoimi.org
+ * booru.io
+ * danbooru.donmai.us
+ * derpibooru.org
+ * e-hentai.org
+ * e621.net
+ * exhentai.org
+ * gelbooru.com
+ * hijiribe.donmain.us
+ * kemono.su
+ * konachan.com
+ * nhentai.net
+ * nijie.info
+ * pawoo.net
+ * rule34.paheal.net
+ * rule34.us
+ * safebooru.org
+ * sonohara.donmai.us
+ * tentaclerape.net
+ * wallhaven.cc
+ * www.artstation.com
+ * www.deviantart.com
+ * www.newgrounds.com/art
+ * www.pixiv.net
+ * www.reddit.com
+ * www.zerochan.net
+ * yande.re
+ */
+
+var keys = {};
+
+export function getApiKey(booru) {
+	return keys[booru];
+}
+
+export function setApiKey(data) {
+	if (data === undefined)
+		new ChipbooruError("NO_SETKEY_PARAM").throw();
+	if (typeof data !== "object" || data.constructor.name !== "Object")
+		new ChipbooruError("SETKEY_PARAM_NOT_OBJECT").throw();
+
+	const unsupported = Object.getOwnPropertyNames(data).filter(key => planned.includes(key));
+	const unrecognised = Object.getOwnPropertyNames(data).filter(key => ![ ...supported, ...planned ].includes(key));
+
+	if (unrecognised.length)
+		new ChipbooruWarning("IMAGEBOARD_NOT_SUPPORTED", unrecognised[0]).throw();
+	if (unsupported.length)
+		new ChipbooruWarning("IMAGEBOARD_NOT_YET_SUPPORTED", unsupported[0]).throw();
+
+	Object.assign(keys, data);
+}
