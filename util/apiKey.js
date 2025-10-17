@@ -1,4 +1,4 @@
-import { ChipbooruError, ChipbooruWarning } from "./error.js";
+import { ChipbooruError } from "./error.js";
 
 const supported = [
 	"rule34"
@@ -48,17 +48,17 @@ export function getApiKey(booru) {
 
 export function setApiKey(data) {
 	if (data === undefined)
-		new ChipbooruError("SETKEY_NO_PARAM").throw();
+		ChipbooruError.throw("SETKEY_NO_PARAM");
 	if (data.constructor.name !== "Object")
-		new ChipbooruError("SETKEY_NOT_OBJECT").throw();
+		ChipbooruError.throw("SETKEY_NOT_OBJECT");
 
 	const unsupported = Object.getOwnPropertyNames(data).filter(key => planned.includes(key));
 	const unrecognised = Object.getOwnPropertyNames(data).filter(key => ![ ...supported, ...planned ].includes(key));
 
 	if (unrecognised.length)
-		new ChipbooruWarning("IMAGEBOARD_NOT_SUPPORTED", unrecognised[0]).throw();
+		ChipbooruError.warn("IMAGEBOARD_NOT_SUPPORTED", unrecognised[0]);
 	if (unsupported.length)
-		new ChipbooruWarning("IMAGEBOARD_NOT_SUPPORTED_YET", unsupported[0]).throw();
+		ChipbooruError.warn("IMAGEBOARD_NOT_SUPPORTED_YET", unsupported[0]);
 
 	Object.assign(keys, data);
 }

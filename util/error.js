@@ -10,18 +10,11 @@ export class ChipbooruError extends Error {
 		).trim();
 	}
 
-	throw() {
-		throw this;
-	}
-}
-
-export class ChipbooruWarning extends ChipbooruError {
-	constructor(code, value) {
-		super(code, value);
-		this.message = "Warning: " + this.message;
+	static throw(code, value) {
+		throw new this(code, value);
 	}
 
-	throw() {
-		console.warn(this);
+	static warn(code, value) {
+		console.warn(new this(code, value));
 	}
 }

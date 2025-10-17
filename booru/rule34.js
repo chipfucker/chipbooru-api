@@ -1,18 +1,36 @@
-import { ChipbooruError, ChipbooruWarning } from "../util/error.js";
+import { ChipbooruError } from "../util/error.js";
 import { getApiKey } from "../util/apiKey.js";
 import { DOMParser } from "xmldom";
 
-async function get(input, options) {
+export async function get(input, options) {
 	var id;
 	if (typeof input === "string") id = input.match(/^(?:id:)?(\d+)$/)?.at(1);
 	id = Number(id ?? input);
 
 	if (Number.isNaN(id))
-		new ChipbooruError("GET_INVALID_TYPE").throw();
+		ChipbooruError.throw("GET_INVALID_TYPE");
 	if (!Number.isInteger(id))
-		new ChipbooruError("GET_INVALID_DIVISION", id).throw();
+		ChipbooruError.throw("GET_INVALID_DIVISION", id);
 	if (id < 1)
-		new ChipbooruError("GET_INVALID_INT", id).throw();
+		ChipbooruError.throw("GET_INVALID_INT", id);
+
+	switch (options?.vanilla) {
+		case undefined: break;
+		case "json":
+			return new rule34Vanilla(await draw.post({
+				limit: 1,
+				json: true,
+				tags: `id:${id}`
+			}));
+		case "xml":
+			return new rule34Vanilla(await draw.post({
+				limit: 1,
+				json: false,
+				tags: `id:${id}`
+			}));
+		default:
+			ChipbooruError.throw("GET_INVALID_OPTION", `vanilla: ${options.vanilla}`);
+	}		
 
 	const response = await draw.post({
 		limit: 1,
@@ -20,24 +38,80 @@ async function get(input, options) {
 		tags: `id:${id}`
 	});
 
-	if (options.vanilla)
-		return new rule34Vanilla(response);
-
 	const [json] = response;
 
 	if (json === undefined)
 		return null;
 	else
-		return new rule34Post(format.initial(json[0]));
+		return new rule34Post(format.initial(json));
 }
 
 export async function search(input, options) {
 
 }
 
+export const vanilla = {
+	get: async (input, options) => {
+		var id;
+		if (typeof input === "string") id = input.match(/^(?:id:)?(\d+)$/)?.at(1);
+		id = Number(id ?? input);
+	
+		if (Number.isNaN(id))
+			ChipbooruError.throw("GET_INVALID_TYPE");
+		if (!Number.isInteger(id))
+			ChipbooruError.throw("GET_INVALID_DIVISION", id);
+		if (id < 1)
+			ChipbooruError.throw("GET_INVALID_INT", id);
+
+		if (!options?.method || (!options.method.json && !options.method.xml && !options.method.comment))
+			ChipbooruError.throw("_TEMP");
+		
+		const promises = [
+			options?.method?.json && draw.post({
+				limit: options?.limit ?? 50,
+				json: true,
+				tags: `id:${id}`
+			}),
+			options?.method?.xml && draw.post({
+				limit: options?.limit ?? 50,
+				json: false,
+				tags: `id:${id}`
+			}),
+			options?.method?.comment && draw.post({
+				limit: options?.limit ?? 50,
+				json: false,
+				tags: `id:${id}`
+			})
+		];
+
+		return await Promise.all(promises).then(async (array) => {
+			const response = {};
+			if (array[0]) response.json = array[0];
+			if (array[1]) response.xml = array[1];
+			if (array[2]) response.comment = array[2];
+
+			return response;
+		});
+	}
+}
+
 class rule34Post {
 	constructor(obj) {
 		Object.assign(this, obj);
+		this.hasXml = false;
+	}
+
+	async appendXML(obj) {
+		obj ??= await draw.post({
+			limit: 1,
+			json: false,
+			tags: `id:${this.id}`
+		}).then(doc => doc.getElementsByTagName("post")[0]);
+
+		format.xml(this, obj);
+		this.hasXml = true;
+
+		return this;
 	}
 
 	revertFormat() {
@@ -55,8 +129,6 @@ class rule34Vanilla {
 	}
 }
 
-const secret = getApiKey("rule34");
-
 const getUrl  = {
 	post: (params) => {
 		const baseUrl = "https://api.rule34.xxx";
@@ -70,10 +142,12 @@ const getUrl  = {
 
 const draw = {
 	async post(options) {
+		const secret = getApiKey("rule34");
+
 		if (!secret.api_key)
-			new ChipbooruError("NO_APIKEY", ["Rule34", "api_key"]).throw();
+			ChipbooruError.throw("NO_APIKEY", ["Rule34", "api_key"]);
 		if (!secret.user_id)
-			new ChipbooruError("NO_APIKEY", ["Rule34", "user_id"]).throw();
+			ChipbooruError.throw("NO_APIKEY", ["Rule34", "user_id"]);
 
 		const response = await fetch(getUrl.post({
 			page: "dapi",
@@ -81,28 +155,37 @@ const draw = {
 			q: "index",
 			limit: options?.limit ?? 1,
 			json: Number(options.json),
-			fields: options?.json ? "tag_info" : null,
-			tags: options?.tags ?? null,
+			fields: options.json ? "tag_info" : "",
+			tags: options?.tags ?? "",
 			api_key: secret.api_key,
 			user_id: secret.user_id
 		}));
 
-		console.debug("PLZ CHECK CONTENT-TYPE:", response.headers);
-
-		if (response.headers["Content-Type"].match(/application\/json/)) {
+		if (response.headers.get("content-type").match(/application\/json/))
 			return await response.json();
-		} else if (response.headers["Content-Type"].match(/text\/xml/))
-			// may also be "application/xml"
+		else if (response.headers.get("content-type").match(/text\/xml/))
 			return await response.text()
 				.then(text => new DOMParser().parseFromString(text, "text/xml"));
+	},
+	async comments(options) {
+		const secret = getApiKey("rule34");
+
+		if (!secret.api_key)
+			ChipbooruError.throw("NO_APIKEY", ["Rule34", "api_key"]);
+		if (!secret.user_id)
+			ChipbooruError.throw("NO_APIKEY", ["Rule34", "user_id"]);
+
+		const response = await fetch(getUrl.post({
+			page: "dapi",
+			s: "comment",
+			q: "index",
+			post_id: options?.post_id
+		}));
 	}
 }
 
 const format = {
-	initial: (obj) => {
-		if (obj.constructor.name !== "Object")
-			throw new Error("Attempted to format an invalid object as initial object.");
-		return {
+	initial: (obj) => ({
 			image: {
 				main: {
 					url: obj.file_url,
@@ -123,11 +206,11 @@ const format = {
 				directory: obj.directory,
 				name: obj.image,
 				hash: obj.hash,
-				extension: obj.image.split(".").pop()
+				extension: obj.image.match(/.*\.(.*)$/)[1]
 			},
 			id: obj.id,
 			created: undefined,
-			updated: dateObject(obj.change * 1000),
+			updated: format.date(obj.change * 1000),
 			creator: {
 				name: obj.owner,
 				id: undefined
@@ -137,23 +220,43 @@ const format = {
 			status: obj.status,
 			notes: obj.has_notes, // TODO: find out how to fetch note info
 			parent: obj.parent_id,
-			source: obj.source
-		};
+			source: obj.source,
+			comments: Array(obj.comment_count)
+	}),
+	xml: (that, obj) => {
+		that.image.thumbnail.width = Number(obj.getAttribute("preview_width"));
+		that.image.thumbnail.height = Number(obj.getAttribute("preview_height"));
+		that.created = format.date(obj.getAttribute("created_at"));
+		that.creator.id = Number(obj.getAttribute("creator_id"));
+		that.children = obj.getAttribute("has_children") === "true";
 	},
-	xml: (obj) => {
-		if (obj.constructor.name !== "Document")
-			// "Document" may be something else
-			throw new Error();
-		return {
-			image: {
-				thumbnail: {
-					width: Number(obj.getAttribute("preview_width")),
-					height: Number(obj.getAttribute("preview_height"))
-				}
-			}
-		};
-	},
-	date: (date) => {
+	date: (input) => new class extends Date {
+		constructor() {
+			super(input);
+		}
 
+		toString() {
+			const day = [
+				"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+			][obj.getDay()];
+			const month = [
+				"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+			][obj.getMonth()];
+			const date = String(obj.getDate()).padStart(2, "0");
+		
+			const hour = String(obj.getHours()).padStart(2, "0");
+			const minute = String(obj.getMinutes()).padStart(2, "0");
+			const second = String(obj.getSeconds()).padStart(2, "0");
+		
+			const zone = (() => {
+				const zone = obj.getTimezoneOffset();
+				const pos = zone >= 0 ? "+" : "-";
+				const num = String(Math.abs(zone)).padStart(4, "0");
+				return pos + num;
+			})();
+			const year = String(obj.getFullYear());
+
+			return `${day} ${month} ${date} ${hour}:${minute}:${second} ${zone} ${year}`;
+		}
 	}
 }
