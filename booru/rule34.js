@@ -113,10 +113,6 @@ class rule34Post {
 
 		return this;
 	}
-
-	revertFormat() {
-
-	}
 }
 
 class rule34Vanilla {
