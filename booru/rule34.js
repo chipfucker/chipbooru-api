@@ -107,7 +107,7 @@ class Rule34Post {
 		/* Could also be:
 		 * [object Rule34Post]
 		 * [5823623 Rule34Post]
-		 * https://rule34.xxx?...
+		 * https://rule34.xxx?... (url to post)
 		 */
 	}
 }
