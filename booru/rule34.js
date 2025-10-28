@@ -26,7 +26,7 @@ export async function get(input, options) {
 		if (json === undefined)
 			return null;
 		else
-			return new rule34Post(format.initial(json));
+			return new Rule34Post(format.initial(json));
 	}
 	
 
@@ -81,7 +81,7 @@ export const vanilla = {
 	}
 }
 
-class rule34Post {
+class Rule34Post {
 	constructor(obj) {
 		Object.assign(this, obj);
 		this.hasXml = false;
@@ -102,7 +102,14 @@ class rule34Post {
 		return this;
 	}
 
-
+	toString() {
+		return `[${this.id} Rule34Post]`;
+		/* Could also be:
+		 * [object Rule34Post]
+		 * [5823623 Rule34Post]
+		 * https://rule34.xxx?...
+		 */
+	}
 }
 
 const getUrl  = {
