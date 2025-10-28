@@ -216,9 +216,12 @@ const draw = {
 			user_id: secret.user_id
 		}));
 
-		if (response.headers.get("content-type").match(/application\/json/))
-			return await response.json();
-		else if (response.headers.get("content-type").match(/text\/xml/))
+		if (response.headers.get("content-type").match(/application\/json/)) {
+			const json = await response.json();
+			if (json === "Missing authentication. Go to api.rule34.xxx for more information")
+				ChipbooruError.throw("INVALID_APIKEY", "Rule34");
+			else return json;
+		} else if (response.headers.get("content-type").match(/text\/xml/))
 			return await response.text()
 				.then(text => new DOMParser().parseFromString(text, "text/xml"));
 	},

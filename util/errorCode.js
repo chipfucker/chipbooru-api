@@ -30,6 +30,10 @@ export default {
 		message: `A ${booru} function was called without the necessary API key set (${key})`,
 		hint: ""
 	}),
+	INVALID_APIKEY: (booru) => ({
+		message: `A ${booru} function was called with an invalid API key.`,
+		hint: ""
+	}),
 
 	GET_INVALID_TYPE: () => ({
 		message: "#get() was called with an ID that could not be coerced into a number.",
