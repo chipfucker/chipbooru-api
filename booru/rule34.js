@@ -1,3 +1,4 @@
+import { Enum } from "../util/enum.js";
 import { ChipbooruError } from "../util/error.js";
 import { getApiKey } from "../util/apiKey.js";
 import { DOMParser } from "xmldom";
@@ -113,6 +114,19 @@ export const vanilla = {
 		});
 	}
 }
+
+export const rating = new Enum({
+	0: "safe",
+	1: "questionable",
+	2: "explicit"
+});
+
+// TODO: verify value names
+export const status = new Enum({
+	0: "active",
+	1: "flagged",
+	2: "deleted"
+});
 
 class Rule34Post {
 	constructor(obj) {
@@ -283,8 +297,8 @@ const format = {
 			},
 			thumbnail: {
 				url: obj.preview_url
-				// width: undefined
-				// height: undefined
+				// width: xml
+				// height: xml
 			},
 			directory: obj.directory,
 			name: obj.image,
@@ -292,15 +306,15 @@ const format = {
 			extension: obj.image.match(/.*\.(.*)$/)[1]
 		},
 		id: obj.id,
-		// created: undefined
+		// created: xml
 		updated: format.date(obj.change * 1000),
 		creator: {
 			name: obj.owner
-			// id: undefined
+			// id: xml
 		},
-		rating: obj.rating,
+		rating: obj.rating, // TODO: convert to enum
 		score: obj.score,
-		status: obj.status,
+		status: obj.status, // TODO: convert to enum
 		notes: obj.has_notes, // TODO: find out how to fetch note info
 		parent: obj.parent_id,
 		source: obj.source,
