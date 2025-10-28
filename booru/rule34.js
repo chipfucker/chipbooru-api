@@ -29,7 +29,40 @@ export async function get(input, options) {
 			return new Rule34Post(format.initial(json));
 	}
 	
+	const response = await Promise.all([
+		draw.post({
+			limit: 1,
+			json: true,
+			tags: `id:${id}`
+		}),
+		draw.post({
+			limit: 1,
+			json: false,
+			tags: `id:${id}`
+		}),
+		draw.comments({
+			post_id: id
+		}),
+		draw.post({
+			limit: 1000,
+			json: true,
+			tags: `parent:${id}`
+		})
+	]).then(async promise => ({
+		json: await promise[0].json(),
+		xml: parse.xml(await promise[1].text()),
+		comments: parse.xml(await promise[2].text()),
+		children: await promise[3].json()
+	}));
 
+	const obj = {};
+
+	assign.initial(obj, response.json[0]);
+	assign.xml(obj, response.xml.children[0]);
+	assign.comments(obj, response.comments);
+	assign.children(obj, response.children);
+
+	return Rule34Post(obj);
 }
 
 export async function search(input, options) {
@@ -72,9 +105,9 @@ export const vanilla = {
 
 		return await Promise.all(promises).then(async (array) => {
 			const response = {};
-			if (array[0]) response.json = array[0];
-			if (array[1]) response.xml = array[1];
-			if (array[2]) response.comment = array[2];
+			if (array[0]) response.json = await array[0].json();
+			if (array[1]) response.xml = parse.xml(await array[1].text());
+			if (array[2]) response.comment = parse.xml(await array[2].text());
 
 			return response;
 		});
@@ -84,31 +117,56 @@ export const vanilla = {
 class Rule34Post {
 	constructor(obj) {
 		Object.assign(this, obj);
-		this.hasXml = false;
 	}
 
-	async getXML(obj) {
-		if (!this.hasXml) return this;
-
-		obj ??= await draw.post({
+	async getXML() {
+		const obj = await draw.post({
 			limit: 1,
 			json: false,
 			tags: `id:${this.id}`
-		}).then(doc => doc.getElementsByTagName("post")[0]);
+		}).then(doc => doc.children[0]);
 
-		format.xml(this, obj);
-		this.hasXml = true;
+		assign.xml(this, obj);
+		return this;
+	}
 
+	async getComments() {
+		const obj = await draw.comments({
+			post_id: this.id
+		});
+
+		assign.comments(this, obj);
+		return this;
+	}
+
+	async getChildren() {
+		const obj = await draw.post({
+			limit: 1000,
+			json: true,
+			tags: `parent:${this.id}`
+		});
+
+		assign.children(this, obj);
 		return this;
 	}
 
 	toString() {
-		return `[${this.id} Rule34Post]`;
-		/* Could also be:
+		return `[object Rule34Post(${this.id})]`;
+		/* Could be:
 		 * [object Rule34Post]
 		 * [5823623 Rule34Post]
 		 * https://rule34.xxx?... (url to post)
 		 */
+	}
+}
+
+class Rule34Results {
+	constructor(obj) {
+		Object.assign(this, obj);
+	}
+
+	*[Symbol.iterator]() {
+		for (const item of this) yield item;
 	}
 }
 
@@ -164,55 +222,107 @@ const draw = {
 			q: "index",
 			post_id: options?.post_id
 		}));
+
+		return await response.text()
+			.then(text => new DOMParser().parseFromString(text, "text/xml"));
 	}
 }
 
-const format = {
-	initial: (obj) => ({
-			image: {
-				main: {
-					url: obj.file_url,
-					width: obj.width,
-					height: obj.height
-				},
-				sample: {
-					url: obj.sample_url,
-					width: obj.sample_width,
-					height: obj.sample_height,
-					necessary: obj.sample
-				},
-				thumbnail: {
-					url: obj.preview_url,
-					width: undefined,
-					height: undefined
-				},
-				directory: obj.directory,
-				name: obj.image,
-				hash: obj.hash,
-				extension: obj.image.match(/.*\.(.*)$/)[1]
-			},
-			id: obj.id,
-			created: undefined,
-			updated: format.date(obj.change * 1000),
-			creator: {
-				name: obj.owner,
-				id: undefined
-			},
-			rating: obj.rating,
-			score: obj.score,
-			status: obj.status,
-			notes: obj.has_notes, // TODO: find out how to fetch note info
-			parent: obj.parent_id,
-			source: obj.source,
-			comments: Array(obj.comment_count)
-	}),
-	xml: (that, obj) => {
-		that.image.thumbnail.width = Number(obj.getAttribute("preview_width"));
-		that.image.thumbnail.height = Number(obj.getAttribute("preview_height"));
-		that.created = format.date(obj.getAttribute("created_at"));
-		that.creator.id = Number(obj.getAttribute("creator_id"));
-		that.children = obj.getAttribute("has_children") === "true";
+const assign = {
+	initial: (that, obj) => {
+		const json = format.initial(obj);
+
+		Object.assign(that, json);
+
+		that.applied = {
+			xml: false,
+			comments: false,
+			children: false
+		};
 	},
+	xml: (that, obj) => {
+		const json = format.xml(obj);
+
+		that.image.thumbnail.width = json.image.thumbnail.width;
+		that.image.thumbnail.height = json.image.thumbnail.height;
+		that.created = json.created;
+		that.creator.id = json.creator.id;
+		that.children = json.children;
+
+		that.applied.xml = true;
+	},
+	comments: (that, obj) => {
+		const json = Array.from(obj).map(child => format.comment(child));
+
+		that.comments = json;
+
+		that.applied.comments = true;
+	},
+	children: (that, obj) => {
+		const json = obj.map(post => post.id);
+
+		that.children = json;
+
+		that.applied.children = true;
+	}
+};
+
+const format = {
+	json: (obj) => ({
+		image: {
+			main: {
+				url: obj.file_url,
+				width: obj.width,
+				height: obj.height
+			},
+			sample: {
+				url: obj.sample_url,
+				width: obj.sample_width,
+				height: obj.sample_height,
+				necessary: obj.sample
+			},
+			thumbnail: {
+				url: obj.preview_url
+				// width: undefined
+				// height: undefined
+			},
+			directory: obj.directory,
+			name: obj.image,
+			hash: obj.hash,
+			extension: obj.image.match(/.*\.(.*)$/)[1]
+		},
+		id: obj.id,
+		// created: undefined
+		updated: format.date(obj.change * 1000),
+		creator: {
+			name: obj.owner
+			// id: undefined
+		},
+		rating: obj.rating,
+		score: obj.score,
+		status: obj.status,
+		notes: obj.has_notes, // TODO: find out how to fetch note info
+		parent: obj.parent_id,
+		source: obj.source,
+		comments: Array(obj.comment_count)
+	}),
+	xml: (obj) => ({
+		image: { thumbnail: {
+			width: Number(obj.getAttribute("preview_width")),
+			height: Number(obj.getAttribute("preview_height"))
+		}},
+		created: format.date(obj.getAttribute("created_at")),
+		creator: { id: Number(obj.getAttribute("creator_id")) },
+		children: obj.getAttribute("has_children") === "true" // TODO: define differently
+	}),
+	comment: (obj) => ({
+		creator: {
+			name: obj.getAttribute("creator"),
+			id: Number(obj.getAttribute("creator_id"))
+		},
+		id: Number(obj.getAttribute("id")),
+		body: obj.getAttribute("body")
+	}),
 	date: (input) => new class extends Date {
 		constructor() {
 			super(input);
@@ -242,4 +352,8 @@ const format = {
 			return `${day} ${month} ${date} ${hour}:${minute}:${second} ${zone} ${year}`;
 		}
 	}
-}
+};
+
+const parse = {
+	xml: (obj) => new DOMParser().parseFromString(obj, "text/xml")
+};
