@@ -12,38 +12,24 @@ export async function get(input, options) {
 	if (!Number.isInteger(id))
 		ChipbooruError.throw("GET_INVALID_DIVISION", id);
 	if (id < 1)
-		ChipbooruError.throw("GET_INVALID_INT", id);
+		ChipbooruError.throw("GET_INVALID_INT", id);		
+	
+	if (options?.jsonOnly) {
+		const response = await draw.post({
+			limit: 1,
+			json: true,
+			tags: `id:${id}`
+		});
 
-	switch (options?.vanilla) {
-		case undefined: break;
-		case "json":
-			return new rule34Vanilla(await draw.post({
-				limit: 1,
-				json: true,
-				tags: `id:${id}`
-			}));
-		case "xml":
-			return new rule34Vanilla(await draw.post({
-				limit: 1,
-				json: false,
-				tags: `id:${id}`
-			}));
-		default:
-			ChipbooruError.throw("GET_INVALID_OPTION", `vanilla: ${options.vanilla}`);
-	}		
+		const [json] = response;
+		
+		if (json === undefined)
+			return null;
+		else
+			return new rule34Post(format.initial(json));
+	}
+	
 
-	const response = await draw.post({
-		limit: 1,
-		json: true,
-		tags: `id:${id}`
-	});
-
-	const [json] = response;
-
-	if (json === undefined)
-		return null;
-	else
-		return new rule34Post(format.initial(json));
 }
 
 export async function search(input, options) {
@@ -64,7 +50,7 @@ export const vanilla = {
 			ChipbooruError.throw("GET_INVALID_INT", id);
 
 		if (!options?.method || (!options.method.json && !options.method.xml && !options.method.comment))
-			ChipbooruError.throw("_TEMP");
+			options.method.json = true;
 		
 		const promises = [
 			options?.method?.json && draw.post({
@@ -101,7 +87,9 @@ class rule34Post {
 		this.hasXml = false;
 	}
 
-	async appendXML(obj) {
+	async getXML(obj) {
+		if (!this.hasXml) return this;
+
 		obj ??= await draw.post({
 			limit: 1,
 			json: false,
@@ -113,16 +101,8 @@ class rule34Post {
 
 		return this;
 	}
-}
 
-class rule34Vanilla {
-	constructor(array) {
-		Object.assign(this, array);
-	}
 
-	format() {
-
-	}
 }
 
 const getUrl  = {
