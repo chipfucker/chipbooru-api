@@ -4,9 +4,9 @@ import { getApiKey } from "../main/apiKey.js";
 import { DOMParser } from "xmldom";
 
 export async function get(input, options) {
-	var id;
-	if (typeof input === "string") id = input.match(/^(?:id:)?(\d+)$/)?.at(1);
-	id = Number(id ?? input);
+	const id = (typeof input === "string")
+		? Number(input.match(/^(?:id:)?(\d+)$/)?.at(1))
+		: Number(input);
 
 	if (Number.isNaN(id))
 		ChipbooruError.throw("GET_INVALID_TYPE");
