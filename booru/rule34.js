@@ -49,21 +49,23 @@ export async function get(input, options) {
 			json: true,
 			tags: `parent:${id}`
 		})
-	]).then(async promise => ({
-		json: await promise[0].json(),
-		xml: parse.xml(await promise[1].text()),
-		comments: parse.xml(await promise[2].text()),
-		children: await promise[3].json()
+	]).then(promise => ({
+		json: promise[0],
+		xml: promise[1],
+		comments: promise[2],
+		children: promise[3]
 	}));
+
+	if (response.json === null) return null;
 
 	const obj = {};
 
 	assign.initial(obj, response.json[0]);
-	assign.xml(obj, response.xml.children[0]);
+	assign.xml(obj, response.xml.childNodes[0]);
 	assign.comments(obj, response.comments);
 	assign.children(obj, response.children);
 
-	return Rule34Post(obj);
+	return new Rule34Post(obj);
 }
 
 export async function search(input, options) {
@@ -83,37 +85,38 @@ export const vanilla = {
 		if (id < 1)
 			ChipbooruError.throw("GET_INVALID_INT", id);
 
-		if (!options?.method || (!options.method.json && !options.method.xml && !options.method.comment))
+		if (!options?.method || (!options.method?.json && !options.method?.xml && !options.method?.comment)) {
+			options ??= {};
+			options.method ??= {};
 			options.method.json = true;
-		
+		}
+
 		const promises = [
 			options?.method?.json && draw.post({
-				limit: options?.limit ?? 50,
+				limit: 1,
 				json: true,
 				tags: `id:${id}`
 			}),
 			options?.method?.xml && draw.post({
-				limit: options?.limit ?? 50,
+				limit: 1,
 				json: false,
 				tags: `id:${id}`
 			}),
-			options?.method?.comment && draw.post({
-				limit: options?.limit ?? 50,
-				json: false,
-				tags: `id:${id}`
+			options?.method?.comment && draw.comments({
+				post_id: id
 			})
 		];
 
-		return await Promise.all(promises).then(async (array) => {
+		return await Promise.all(promises).then(array => {
 			const response = {};
-			if (array[0]) response.json = await array[0].json();
-			if (array[1]) response.xml = parse.xml(await array[1].text());
-			if (array[2]) response.comment = parse.xml(await array[2].text());
+			if (array[0]) response.json = array[0];
+			if (array[1]) response.xml = array[1];
+			if (array[2]) response.comment = array[2];
 
 			return response;
 		});
 	}
-}
+};
 
 export const rating = new Enum({
 	0: "safe",
@@ -138,9 +141,9 @@ class Rule34Post {
 			limit: 1,
 			json: false,
 			tags: `id:${this.id}`
-		}).then(doc => doc.children[0]);
+		});
 
-		assign.xml(this, obj);
+		assign.xml(this, obj.childNodes[0]);
 		return this;
 	}
 
@@ -179,12 +182,11 @@ class Rule34Results {
 		Object.assign(this, obj);
 	}
 
-	*[Symbol.iterator]() {
-		for (const item of this) yield item;
-	}
+	/* *[Symbol.iterator]() {
+	} */
 }
 
-const getUrl  = {
+const getUrl = {
 	post: (params) => {
 		const baseUrl = "https://api.rule34.xxx";
 		const search = new URLSearchParams(params).toString();
@@ -199,88 +201,75 @@ const draw = {
 	async post(options) {
 		const secret = getApiKey("rule34");
 
-		if (!secret.api_key)
+		if (!secret?.api_key)
 			ChipbooruError.throw("NO_APIKEY", ["Rule34", "api_key"]);
-		if (!secret.user_id)
+		if (!secret?.user_id)
 			ChipbooruError.throw("NO_APIKEY", ["Rule34", "user_id"]);
-
+		
 		const response = await fetch(getUrl.post({
 			page: "dapi",
 			s: "post",
 			q: "index",
 			limit: options?.limit ?? 1,
-			json: Number(options.json),
-			fields: options.json ? "tag_info" : "",
+			json: Number(options?.json ?? false),
+			fields: options?.json ? "tag_info" : "",
 			tags: options?.tags ?? "",
 			api_key: secret.api_key,
 			user_id: secret.user_id
 		}));
 
 		if (response.headers.get("content-type").match(/application\/json/)) {
-			const json = await response.json();
+			const json = await parse.json(response);
 			if (json === "Missing authentication. Go to api.rule34.xxx for more information")
 				ChipbooruError.throw("INVALID_APIKEY", "Rule34");
 			else return json;
 		} else if (response.headers.get("content-type").match(/text\/xml/))
-			return await response.text()
-				.then(text => new DOMParser().parseFromString(text, "text/xml"));
+			return await parse.xml(response);
 	},
 	async comments(options) {
 		const secret = getApiKey("rule34");
 
-		if (!secret.api_key)
+		if (!secret?.api_key)
 			ChipbooruError.throw("NO_APIKEY", ["Rule34", "api_key"]);
-		if (!secret.user_id)
+		if (!secret?.user_id)
 			ChipbooruError.throw("NO_APIKEY", ["Rule34", "user_id"]);
-
+		
 		const response = await fetch(getUrl.post({
 			page: "dapi",
 			s: "comment",
 			q: "index",
-			post_id: options?.post_id
+			post_id: options?.post_id,
+			api_key: secret.api_key,
+			user_id: secret.user_id
 		}));
 
-		return await response.text()
-			.then(text => new DOMParser().parseFromString(text, "text/xml"));
+		return await parse.xml(response);
 	}
-}
+};
 
-const assign = {
-	initial: (that, obj) => {
-		const json = format.initial(obj);
-
-		Object.assign(that, json);
-
-		that.applied = {
-			xml: false,
-			comments: false,
-			children: false
-		};
+const parse = {
+	json: async (response) => {
+		const text = await response.text();
+		try {
+			return JSON.parse(text);
+		} catch (error) {
+			return null;
+		}
 	},
-	xml: (that, obj) => {
-		const json = format.xml(obj);
+	xml: async (response) => {
+		const element = await response.text()
+			.then(file => new DOMParser().parseFromString(file, "text/xml").documentElement);
+		
+		var index = 0;
+		while (index < element.childNodes.length) {
+			if (element.childNodes[index].nodeType !== 1) {
+				element.removeChild(element.childNodes[index]);
+			} else {
+				index++;
+			}
+		}
 
-		that.image.thumbnail.width = json.image.thumbnail.width;
-		that.image.thumbnail.height = json.image.thumbnail.height;
-		that.created = json.created;
-		that.creator.id = json.creator.id;
-		that.children = json.children;
-
-		that.applied.xml = true;
-	},
-	comments: (that, obj) => {
-		const json = Array.from(obj).map(child => format.comment(child));
-
-		that.comments = json;
-
-		that.applied.comments = true;
-	},
-	children: (that, obj) => {
-		const json = obj.map(post => post.id);
-
-		that.children = json;
-
-		that.applied.children = true;
+		return element;
 	}
 };
 
@@ -371,6 +360,42 @@ const format = {
 	}
 };
 
-const parse = {
-	xml: (obj) => new DOMParser().parseFromString(obj, "text/xml")
+const assign = {
+	initial: (that, obj) => {
+		const json = format.json(obj);
+
+		Object.assign(that, json);
+
+		that.applied = {
+			xml: false,
+			comments: false,
+			children: false
+		};
+	},
+	xml: (that, obj) => {
+		const json = format.xml(obj);
+
+		that.image.thumbnail.width = json.image.thumbnail.width;
+		that.image.thumbnail.height = json.image.thumbnail.height;
+		that.created = json.created;
+		that.creator.id = json.creator.id;
+		that.children = json.children;
+
+		that.applied.xml = true;
+	},
+	comments: (that, obj) => {
+		const json = Array.from(obj.childNodes)
+			.map(child => format.comment(child));
+
+		that.comments = json;
+
+		that.applied.comments = true;
+	},
+	children: (that, obj) => {
+		const json = obj.map(post => post.id).filter(id => id !== that.id);
+
+		that.children = json;
+
+		that.applied.children = true;
+	}
 };
