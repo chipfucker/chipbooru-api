@@ -1,6 +1,6 @@
-import { Enum } from "../util/enum.js";
-import { ChipbooruError } from "../util/error.js";
-import { getApiKey } from "../util/apiKey.js";
+import { Enum, assignRecursive } from "../util/index.js";
+import { ChipbooruError } from "../main/error.js";
+import { getApiKey } from "../main/apiKey.js";
 import { DOMParser } from "xmldom";
 
 export async function get(input, options) {
@@ -118,14 +118,14 @@ export const vanilla = {
 	}
 };
 
-export const rating = new Enum({
+export const postRating = new Enum({
 	0: "safe",
 	1: "questionable",
 	2: "explicit"
-});
+}, { "s": 0, "q": 1, "e": 2 });
 
 // TODO: verify value names
-export const status = new Enum({
+export const postStatus = new Enum({
 	0: "active",
 	1: "flagged",
 	2: "deleted"
@@ -186,6 +186,7 @@ class Rule34Results {
 	} */
 }
 
+// create url with key-value parameters
 const getUrl = {
 	post: (params) => {
 		const baseUrl = "https://api.rule34.xxx";
@@ -197,6 +198,7 @@ const getUrl = {
 	}
 };
 
+// fetch data with few parameters
 const draw = {
 	async post(options) {
 		const secret = getApiKey("rule34");
@@ -220,7 +222,8 @@ const draw = {
 
 		if (response.headers.get("content-type").match(/application\/json/)) {
 			const json = await parse.json(response);
-			if (json === "Missing authentication. Go to api.rule34.xxx for more information")
+			const noAuthMsg = "Missing authentication. Go to api.rule34.xxx for more information";
+			if (json === noAuthMsg)
 				ChipbooruError.throw("INVALID_APIKEY", "Rule34");
 			else return json;
 		} else if (response.headers.get("content-type").match(/text\/xml/))
@@ -247,6 +250,7 @@ const draw = {
 	}
 };
 
+// convert response objects to json/xml objects
 const parse = {
 	json: async (response) => {
 		const text = await response.text();
@@ -273,6 +277,7 @@ const parse = {
 	}
 };
 
+// reformat disorganized objects into basic json
 const format = {
 	json: (obj) => ({
 		image: {
@@ -304,21 +309,45 @@ const format = {
 			name: obj.owner
 			// id: xml
 		},
-		rating: obj.rating, // TODO: convert to enum
+		rating: postRating[obj.rating],
 		score: obj.score,
-		status: obj.status, // TODO: convert to enum
+		status: postStatus[obj.status],
 		notes: obj.has_notes, // TODO: find out how to fetch note info
 		parent: obj.parent_id,
 		source: obj.source,
-		comments: Array(obj.comment_count)
+		comments: Array(obj.comment_count),
+		tags: {
+
+		}
 	}),
 	xml: (obj) => ({
-		image: { thumbnail: {
-			width: Number(obj.getAttribute("preview_width")),
-			height: Number(obj.getAttribute("preview_height"))
-		}},
+		image: {
+			main: {
+				url: obj.getAttribute("file_url"),
+				width: Number(obj.getAttribute("width")),
+				height: Number(obj.getAttribute("height"))
+			},
+			sample: {
+				url: obj.getAttribute("sample_url"),
+				width: Number(obj.getAttribute("sample_width")),
+				height: Number(obj.getAttribute("sample_height"))
+			},
+			thumbnail: {
+				url: obj.getAttribute("preview_url"),
+				width: Number(obj.getAttribute("preview_width")),
+				height: Number(obj.getAttribute("preview_height"))
+			}
+		},
+		id: obj.getAttribute("id"),
 		created: format.date(obj.getAttribute("created_at")),
-		creator: { id: Number(obj.getAttribute("creator_id")) },
+		updated: format.date(Number(obj.getAttribute("change")) * 1000),
+		creator: {
+			id: Number(obj.getAttribute("creator_id"))
+		},
+		rating: postRating[obj.getAttribute("rating")],
+		score: Number(obj.getAttribute("score")),
+		status: postStatus[obj.getAttribute("status")],
+		notes: obj.getAttribute("has_notes") === "true",
 		children: obj.getAttribute("has_children") === "true" // TODO: define differently
 	}),
 	comment: (obj) => ({
@@ -329,6 +358,8 @@ const format = {
 		id: Number(obj.getAttribute("id")),
 		body: obj.getAttribute("body")
 	}),
+	comments: (obj) => Array.from(obj.childNodes)
+		.map(child => format.comment(child)),
 	date: (input) => new class extends Date {
 		constructor() {
 			super(input);
@@ -360,42 +391,33 @@ const format = {
 	}
 };
 
+
 const assign = {
 	initial: (that, obj) => {
-		const json = format.json(obj);
-
-		Object.assign(that, json);
-
 		that.applied = {
+			json: false,
 			xml: false,
 			comments: false,
 			children: false
 		};
+		
+		assign.json(that, obj);
+	},
+	json: (that, obj) => {
+		if (that.applied.json) return;
+		assignRecursive(that, format.json(obj));
+		that.applied.json = true;
 	},
 	xml: (that, obj) => {
-		const json = format.xml(obj);
-
-		that.image.thumbnail.width = json.image.thumbnail.width;
-		that.image.thumbnail.height = json.image.thumbnail.height;
-		that.created = json.created;
-		that.creator.id = json.creator.id;
-		that.children = json.children;
-
+		assignRecursive(that, format.xml(obj));
 		that.applied.xml = true;
 	},
 	comments: (that, obj) => {
-		const json = Array.from(obj.childNodes)
-			.map(child => format.comment(child));
-
-		that.comments = json;
-
+		that.comments = format.comments(obj);
 		that.applied.comments = true;
 	},
 	children: (that, obj) => {
-		const json = obj.map(post => post.id).filter(id => id !== that.id);
-
-		that.children = json;
-
+		that.children = obj.map(post => post.id).filter(id => id !== that.id);
 		that.applied.children = true;
 	}
 };
