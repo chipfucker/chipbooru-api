@@ -50,5 +50,10 @@ export default {
 	GET_INVALID_OPTION: (option) => ({
 		message: `#get() was called with an invalid option (${option}).`,
 		hint: "The list of possible values for this option is available in the documentation. https://chipfucker.github.io/chipbooru/api"
+	}),
+
+	UNKNOWN_TAG_TYPE: ([booru, tag]) => ({
+		message: `${booru} passed a tag with an unknown type (${tag.type}). \n${JSON.stringify(tag, null, 2).replace(/\n/g, "\n" + " ".repeat(2))}`,
+		hint: "This error should not be thrown under normal circumstances; please contact me with this info."
 	})
 };

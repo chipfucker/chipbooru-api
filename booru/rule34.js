@@ -131,6 +131,15 @@ export const postStatus = new Enum({
 	2: "deleted"
 });
 
+export const tagType = new Enum({
+	0: "copyright",
+	1: "character",
+	2: "artist",
+	3: "general",
+	4: "metadata",
+	5: null
+}, { "tag": 3 });
+
 class Rule34Post {
 	constructor(obj) {
 		Object.assign(this, obj);
@@ -316,8 +325,14 @@ const format = {
 		parent: obj.parent_id,
 		source: obj.source,
 		comments: Array(obj.comment_count),
-		tags: {
+		tags: new class {
+			constructor() {
+				assignRecursive(this, format.tags(obj.tag_info));
+			}
 
+			toString() {
+				return obj.tags;
+			}
 		}
 	}),
 	xml: (obj) => ({
@@ -348,7 +363,8 @@ const format = {
 		score: Number(obj.getAttribute("score")),
 		status: postStatus[obj.getAttribute("status")],
 		notes: obj.getAttribute("has_notes") === "true",
-		children: obj.getAttribute("has_children") === "true" // TODO: define differently
+		parent: Number(obj.getAttribute("parent_id")),
+		source: obj.getAttribute("source")
 	}),
 	comment: (obj) => ({
 		creator: {
@@ -358,8 +374,17 @@ const format = {
 		id: Number(obj.getAttribute("id")),
 		body: obj.getAttribute("body")
 	}),
-	comments: (obj) => Array.from(obj.childNodes)
-		.map(child => format.comment(child)),
+	comments: (obj) => Array.from(obj.childNodes).map(child => format.comment(child)),
+	tag: (obj) => {
+		if (!Object.entries(tagType).map(entry => entry[0]).includes(obj.type))
+			ChipbooruError.warn("UNKNOWN_TAG_TYPE", ["Rule34", obj]);
+		else return {
+			name: obj.tag,
+			count: obj.count,
+			type: tagType[obj.type]
+		};
+	},
+	tags: (obj) => obj.map(tag => format.tag(tag)),
 	date: (input) => new class extends Date {
 		constructor() {
 			super(input);
@@ -405,11 +430,11 @@ const assign = {
 	},
 	json: (that, obj) => {
 		if (that.applied.json) return;
-		assignRecursive(that, format.json(obj));
+		assignRecursive(that, format.json(obj), { reassign: false });
 		that.applied.json = true;
 	},
 	xml: (that, obj) => {
-		assignRecursive(that, format.xml(obj));
+		assignRecursive(that, format.xml(obj), { reassign: false });
 		that.applied.xml = true;
 	},
 	comments: (that, obj) => {
