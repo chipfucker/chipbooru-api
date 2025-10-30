@@ -29,32 +29,28 @@ export async function get(input, options) {
 		else
 			return new Rule34Post(format.initial(json));
 	}
-	
-	const response = await Promise.all([
-		draw.post({
+	const response = {
+		json: draw.post({
 			limit: 1,
 			json: true,
 			tags: `id:${id}`
 		}),
-		draw.post({
+		xml: draw.post({
 			limit: 1,
 			json: false,
 			tags: `id:${id}`
 		}),
-		draw.comments({
+		comments: draw.comments({
 			post_id: id
 		}),
-		draw.post({
+		children: draw.post({
 			limit: 1000,
 			json: true,
 			tags: `parent:${id}`
 		})
-	]).then(promise => ({
-		json: promise[0],
-		xml: promise[1],
-		comments: promise[2],
-		children: promise[3]
-	}));
+	};
+	
+	await Promise.all(Object.values(response));
 
 	if (response.json === null) return null;
 
