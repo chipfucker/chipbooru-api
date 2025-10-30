@@ -328,7 +328,7 @@ const format = {
 		tags: new class extends Array {
 			constructor() {
 				super();
-				assignRecursive(this, format.tags(obj.tag_info));
+				assignRecursive(format.tags(obj.tag_info), this);
 			}
 
 			toString() {
