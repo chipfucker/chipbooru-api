@@ -69,7 +69,20 @@ export async function get(input, options) {
 }
 
 export async function search(input, options) {
+	if (options?.limit > 1000)
+		ChipbooruError.warn("_TEMP");
 
+	const query = String(input);
+	
+	if (options?.jsonOnly) {
+		const json = await draw.post({
+			limit: options?.limit ?? null,
+			json: true,
+			tags: query
+		});
+		
+		return new Rule34Search(/* TODO */);
+	}
 }
 
 export const vanilla = {
@@ -186,7 +199,7 @@ class Rule34Post {
 	}
 }
 
-class Rule34Results {
+class Rule34Search {
 	constructor(obj) {
 		Object.assign(this, obj);
 	}
@@ -221,7 +234,8 @@ const draw = {
 			page: "dapi",
 			s: "post",
 			q: "index",
-			limit: options?.limit ?? 1,
+			limit: options?.limit ?? 50,
+			pid: options?.pid ?? 1,
 			json: Number(options?.json ?? false),
 			fields: options?.json ? "tag_info" : "",
 			tags: options?.tags ?? "",
@@ -336,6 +350,7 @@ const format = {
 			}
 		}
 	}),
+	jsons: (obj) => obj.map(item => format.json(item)),
 	xml: (obj) => ({
 		image: {
 			main: {
@@ -367,6 +382,7 @@ const format = {
 		parent: Number(obj.getAttribute("parent_id")),
 		source: obj.getAttribute("source")
 	}),
+	xmls: (obj) => Array.from(obj.childNodes).map(child => format.xml(child)),
 	comment: (obj) => ({
 		creator: {
 			name: obj.getAttribute("creator"),
