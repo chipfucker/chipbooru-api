@@ -1,4 +1,4 @@
-import { Enum, assignRecursive } from "../util/index.js";
+import { Enum, objectAssignRecursive } from "../util/index.js";
 import { ChipbooruError } from "../main/error.js";
 import { getApiKey } from "../main/apiKey.js";
 import { DOMParser } from "xmldom";
@@ -328,7 +328,7 @@ const format = {
 		tags: new class extends Array {
 			constructor() {
 				super();
-				assignRecursive(format.tags(obj.tag_info), this);
+				objectAssignRecursive(format.tags(obj.tag_info), this);
 			}
 
 			toString() {
@@ -431,11 +431,11 @@ const assign = {
 	},
 	json: (obj, that) => {
 		if (that.applied.json) return;
-		assignRecursive(format.json(obj), that, { reassign: false });
+		objectAssignRecursive(format.json(obj), that, { reassign: false });
 		that.applied.json = true;
 	},
 	xml: (obj, that) => {
-		assignRecursive(format.xml(obj), that, { reassign: false });
+		objectAssignRecursive(format.xml(obj), that, { reassign: false });
 		that.applied.xml = true;
 	},
 	comments: (obj, that) => {

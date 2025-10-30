@@ -5,7 +5,7 @@ export function recur(callback, ...params) {
 	return iterate(...params);
 }
 
-export function assignRecursive(obj, that, options) {
+export function objectAssignRecursive(obj, that, options) {
 	recur((iterate, entries, that) => {
 		for (const [key, value] of entries) {
 			if (value.constructor.name === "Object") {
