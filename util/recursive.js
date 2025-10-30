@@ -5,23 +5,23 @@ export function recur(callback, ...params) {
 	return iterate(...params);
 }
 
-export function assignRecursive(that, obj, options) {
+export function assignRecursive(obj, that, options) {
 	if (options?.reassign ?? true)
-		recur((iterate, that, entries) => {
+		recur((iterate, entries, that) => {
 			for (const [key, value] of entries) {
 				if (value.constructor.name === "Object") {
 					that[key] ??= {};
-					iterate(that[key], Object.entries(value));
+					iterate(Object.entries(value), that[key]);
 				} else that[key] = value;
 			}
-		}, that, Object.entries(obj));
+		}, Object.entries(obj), that);
 	else
-		recur((iterate, that, entries) => {
+		recur((iterate, entries, that) => {
 			for (const [key, value] of entries) {
 				if (value.constructor.name === "Object") {
 					that[key] ??= {};
-					iterate(that[key], Object.entries(value));
+					iterate(Object.entries(value), that[key]);
 				} else that[key] ??= value;
 			}
-		}, that, Object.entries(obj));
+		}, Object.entries(obj), that);
 }

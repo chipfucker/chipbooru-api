@@ -60,10 +60,10 @@ export async function get(input, options) {
 
 	const obj = {};
 
-	assign.initial(obj, response.json[0]);
-	assign.xml(obj, response.xml.childNodes[0]);
-	assign.comments(obj, response.comments);
-	assign.children(obj, response.children);
+	assign.initial(response.json[0], obj);
+	assign.xml(response.xml.childNodes[0], obj);
+	assign.comments(response.comments, obj);
+	assign.children(response.children, obj);
 
 	return new Rule34Post(obj);
 }
@@ -152,7 +152,7 @@ class Rule34Post {
 			tags: `id:${this.id}`
 		});
 
-		assign.xml(this, obj.childNodes[0]);
+		assign.xml(obj.childNodes[0], this);
 		return this;
 	}
 
@@ -161,7 +161,7 @@ class Rule34Post {
 			post_id: this.id
 		});
 
-		assign.comments(this, obj);
+		assign.comments(obj, this);
 		return this;
 	}
 
@@ -172,7 +172,7 @@ class Rule34Post {
 			tags: `parent:${this.id}`
 		});
 
-		assign.children(this, obj);
+		assign.children(obj, this);
 		return this;
 	}
 
@@ -419,7 +419,7 @@ const format = {
 
 
 const assign = {
-	initial: (that, obj) => {
+	initial: (obj, that) => {
 		that.applied = {
 			json: false,
 			xml: false,
@@ -427,22 +427,22 @@ const assign = {
 			children: false
 		};
 		
-		assign.json(that, obj);
+		assign.json(obj, that);
 	},
-	json: (that, obj) => {
+	json: (obj, that) => {
 		if (that.applied.json) return;
-		assignRecursive(that, format.json(obj), { reassign: false });
+		assignRecursive(format.json(obj), that, { reassign: false });
 		that.applied.json = true;
 	},
-	xml: (that, obj) => {
-		assignRecursive(that, format.xml(obj), { reassign: false });
+	xml: (obj, that) => {
+		assignRecursive(format.xml(obj), that, { reassign: false });
 		that.applied.xml = true;
 	},
-	comments: (that, obj) => {
+	comments: (obj, that) => {
 		that.comments = format.comments(obj);
 		that.applied.comments = true;
 	},
-	children: (that, obj) => {
+	children: (obj, that) => {
 		that.children = obj.map(post => post.id).filter(id => id !== that.id);
 		that.applied.children = true;
 	}
