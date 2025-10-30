@@ -1,4 +1,19 @@
 {
+  "name": "chipbooru",
+  "description": "",
+  "version": "0.0.0",
+  "scripts": {},
+  "repository": {
+	"type": "git",
+	"url": "https://github.com/chiptumor/chipbooru-api.git"
+  },
+  "keywords": [],
+  "author": "chiptumor <tipchumor@gmail.com> (https://github.com/chiptumor)",
+  "license": "UNLICENSED",
+  "bugs": {
+	"url": "https://github.com/chiptumor/chipbooru-api/issues"
+  },
+  "homepage": "",
   "type": "module",
   "dependencies": {
     "xmldom": "^0.6.0"
