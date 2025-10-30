@@ -49,14 +49,15 @@ export async function get(input, options) {
 			tags: `parent:${id}`
 		})
 	};
-	
+
 	await Promise.all(Object.values(response));
 
 	if (response.json === null) return null;
 
 	const obj = {};
 
-	assign.initial(response.json[0], obj);
+	assign.initial(initialApplied, obj);
+	assign.json(response.json[0], obj);
 	assign.xml(response.xml.childNodes[0], obj);
 	assign.comments(response.comments, obj);
 	assign.children(response.children, obj);
@@ -149,6 +150,13 @@ export const tagType = new Enum({
 	4: "metadata",
 	5: null
 }, { "tag": 3 });
+
+const initialApplied = { applied: {
+	json: false,
+	xml: false,
+	comments: false,
+	children: false
+}};
 
 class Rule34Post {
 	constructor(obj) {
@@ -433,14 +441,7 @@ const format = {
 
 const assign = {
 	initial: (obj, that) => {
-		that.applied = {
-			json: false,
-			xml: false,
-			comments: false,
-			children: false
-		};
-		
-		assign.json(obj, that);
+		objectAssignRecursive(obj, that);
 	},
 	json: (obj, that) => {
 		if (that.applied.json) return;
