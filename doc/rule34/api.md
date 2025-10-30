@@ -26,4 +26,5 @@ When accessing posts using search queries, the following parameters may be used.
   - Default is 50.
   <!-- TODO: check minimum, check reactions to lower/higher numbers, check default -->
 - pid
-  - Defines the 'page' of results to retrieve; retrieves results from index ((`pid` - 1) &times; `limit`) to ((`pid` &times; `limit`) - 1).
+  - Defines the 'page' of results to retrieve; retrieves results from index
+    ((`pid` - 1) &times; `limit`) to ((`pid` &times; `limit`) - 1).
