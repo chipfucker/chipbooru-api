@@ -75,10 +75,11 @@ export async function search(input, options) {
 	const query = String(input);
 	
 	if (options?.jsonOnly) {
-		const json = await draw.post({
-			limit: options?.limit ?? null,
+		const array = await draw.post({
+			tags: query,
 			json: true,
-			tags: query
+			limit: options?.limit ?? null,
+			pid: options?.pid ?? 1
 		});
 		
 		return new Rule34Search(/* TODO */);
