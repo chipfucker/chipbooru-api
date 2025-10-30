@@ -325,8 +325,9 @@ const format = {
 		parent: obj.parent_id,
 		source: obj.source,
 		comments: Array(obj.comment_count),
-		tags: new class {
+		tags: new class extends Array {
 			constructor() {
+				super();
 				assignRecursive(this, format.tags(obj.tag_info));
 			}
 
