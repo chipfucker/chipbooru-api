@@ -465,7 +465,9 @@ const assign = {
 		that.applied.comments = true;
 	},
 	children: (obj, that) => {
-		that.children = obj.map(post => post.id).filter(id => id !== that.id);
+		that.children = format.jsons(
+			obj.filter(item => item.id !== that.id)
+		).map(item => new Rule34Post(item));
 		that.applied.children = true;
 	}
 };
