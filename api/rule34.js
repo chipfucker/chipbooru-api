@@ -64,7 +64,7 @@ export async function get(input, options) {
 
 	const obj = {};
 
-	assign.initial(initialApplied, obj);
+	assign.initial(format.initial, obj);
 	assign.json(response.json[0], obj);
 	assign.xml(response.xml.childNodes[0], obj);
 	assign.comments(response.comments, obj);
@@ -74,17 +74,17 @@ export async function get(input, options) {
 }
 
 export async function search(input, options) {
-	if (options?.limit > 1000)
+	if (options?.limit && (0 > options?.limit || options?.limit > 1000))
 		ChipbooruError.warn("_TEMP");
 
 	const query = String(input);
 	
 	if (options?.jsonOnly) {
 		const array = await draw.post({
-			tags: query,
+			tags: query ?? "",
 			json: true,
 			limit: options?.limit ?? null,
-			pid: options?.pid ?? 1
+			pid: options?.pid ?? 0
 		});
 		
 		return new Rule34Search(/* TODO */);
@@ -159,12 +159,6 @@ export const tagType = new Enum({
 	5: null
 }, { "tag": 3 });
 
-const initialApplied = { applied: {
-	json: false,
-	xml: false,
-	comments: false,
-	children: false
-}};
 
 class Rule34Post {
 	constructor(obj) {
@@ -203,10 +197,9 @@ class Rule34Post {
 	}
 
 	toString() {
-		return `[object Rule34Post(${this.id})]`;
+		return `[object Rule34Post (${this.id})]`;
 		/* Could be:
 		 * [object Rule34Post]
-		 * [5823623 Rule34Post]
 		 * https://rule34.xxx?... (url to post)
 		 */
 	}
@@ -315,6 +308,14 @@ const parse = {
 
 // reformat disorganized objects into basic json
 const format = {
+	initial: {
+		applied: {
+			json: false,
+			xml: false,
+			comments: false,
+			children: false
+		}
+	},
 	json: (obj) => ({
 		image: {
 			main: {
