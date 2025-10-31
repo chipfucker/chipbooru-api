@@ -30,7 +30,7 @@ export async function get(input, options) {
 			return new Rule34Post(format.initial(json));
 	}
 
-	const response = {
+	const promises = {
 		json: draw.post({
 			limit: 1,
 			json: true,
@@ -51,8 +51,13 @@ export async function get(input, options) {
 		})
 	};
 
-	// TODO: figure out why this fucking await doesnt work
-	await Promise.all(Object.values(response));
+	const response = await Promise.all(Object.values(response))
+		.then(promise => {
+			const response = {};
+			for (const i in promise) {
+				response[Object.keys(promises)[i]] = promise[i];
+			}
+		});
 
 	if (response.json === null) return null;
 
