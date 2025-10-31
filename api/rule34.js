@@ -51,14 +51,13 @@ export async function get(input, options) {
 		})
 	};
 
-	const response = await Promise.all(Object.values(promises))
-		.then(promise => {
-			const response = {};
-			for (const i in promise) {
-				response[Object.keys(promises)[i]] = promise[i];
-			}
-			return response;
-		});
+	const response = await Promise.all(Object.values(promises)).then(promise => {
+		const response = {};
+		for (const i in promise) {
+			response[Object.keys(promises)[i]] = promise[i];
+		}
+		return response;
+	});
 
 	if (response.json === null) return null;
 
