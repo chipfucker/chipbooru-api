@@ -80,14 +80,37 @@ export async function search(input, options) {
 	
 	if (options?.jsonOnly) {
 		const array = await draw.post({
-			tags: query ?? "",
+			tags: query,
 			json: true,
-			limit: options?.limit ?? null,
-			pid: options?.pid ?? 0
+			limit: options?.limit,
+			pid: options?.pid
 		});
 		
-		return new Rule34Search(/* TODO */);
+		return new Rule34Search(format.jsons(array));
 	}
+
+	const promises = {
+		json: draw.post({
+			limit: options?.limit,
+			json: true,
+			tags: query
+		}),
+		xml: draw.post({
+			limit: options?.limit,
+			json: false,
+			tags: query
+		})
+	};
+
+	const response = await Promise.all(Object.values(promises)).then(promise => {
+		const response = {};
+		for (const i in promise) {
+			response[Object.keys(promises)[i]] = promise[i];
+		}
+		return response;
+	});
+
+	const obj = {};
 }
 
 export const vanilla = {
@@ -244,6 +267,7 @@ const draw = {
 			json: Number(options?.json ?? false),
 			fields: options?.json ? "tag_info" : "",
 			tags: options?.tags ?? "",
+			id: options?.id ?? "",
 			api_key: secret.api_key,
 			user_id: secret.user_id
 		}));
