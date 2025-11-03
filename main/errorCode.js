@@ -49,7 +49,7 @@ export default {
 	}),
 	GET_INVALID_OPTION: (option) => ({
 		message: `#get() was called with an invalid option (${option}).`,
-		hint: "The list of possible values for this option is available in the documentation. https://chipfucker.github.io/chipbooru/api"
+		hint: "The list of possible values for this option is available in the documentation. https://chipfucker.github.io/booru-temp/api"
 	}),
 
 	UNKNOWN_TAG_TYPE: ([booru, tag]) => ({

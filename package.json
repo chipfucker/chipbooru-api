@@ -1,17 +1,17 @@
 {
-  "name": "chipbooru-api",
+  "name": "booru-temp",
   "description": "",
   "version": "0.0.0",
   "scripts": {},
   "repository": {
 	"type": "git",
-	"url": "https://github.com/chiptumor/chipbooru-api.git"
+	"url": "https://github.com/chipfucker/booru-temp.git"
   },
   "keywords": [],
   "author": "chiptumor <tipchumor@gmail.com> (https://github.com/chiptumor)",
   "license": "UNLICENSED",
   "bugs": {
-	"url": "https://github.com/chiptumor/chipbooru-api/issues"
+	"url": "https://github.com/chipfucker/booru-temp/issues"
   },
   "homepage": "",
   "main": "index.js",
